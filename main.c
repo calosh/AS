@@ -22,35 +22,20 @@ FILE *archivo;
 int caracter;	// Variable que almacenara el caracter leido
 char *palabra="";	// Variable para concatenar y almacenar los tokens
 
-//Sinatactico
+//Sintactico
 char *token;
 
 int main(){
 
 	archivo = fopen("codigo.txt","r");	// Se abre el archivo en modo lectura
 
+	token = analizadorLexico();
+	while(token!="EOF"){
+		printf("%d %s\n",cont,token);
+		token = analizadorLexico();
+	}
 
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-	printf("%s\n",analizadorLexico());
-
-
-
-
-
+	//
     fclose(archivo);	// Se cierra el archivo
 	return 0;
 }
@@ -219,16 +204,6 @@ char* analizadorLexico(){
 					palabra="";	// Se fija a cadena vacia
 					estado=0;	// Se reinicia el estado
 					return "numero";
-
-					//if(isOperador(&caracter)==1){
-					//	cont++;
-					//	//printf("%d) %c Operador\n", cont, caracter);
-					//	return "operador";
-					//}else{
-					//	cont++;
-					//	return "separador";
-					//	//printf("%d) %c Separador\n", cont, caracter);
-					//}
 				}
 				if(estado==8){
 					if(inTDS(palabra)==1){
