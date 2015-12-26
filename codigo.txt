@@ -1,0 +1,8 @@
+if(a>b){
+a=4;
+	a  = b;
+	while(a>b){
+		c=h;
+		a+b;
+	}
+}
