@@ -8,267 +8,280 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-char* concat(char *s1, char *s2); //Declaracion del metodo para concatenar
+#include "lexico.h"
 
-char* analizadorLexico();
+//Pila
+#define STACK_MAX 100
 
-char *simbolos[]={"if","else","while","do", "print", "for", "return", "int", "string", "double", "and", "or", "not"};
-char *separadores[]={" ","{","}","(",")",";","\n","\t"};
-char *operadores[]={"+","-","*","/","%","<",">","="};
+typedef struct nodo_s {
+    char dato[STACK_MAX];
+    struct nodo_s *siguiente;
+} nodo_t;
 
-int cont=0;	// Contador de tokens
-
-FILE *archivo;
-int caracter;	// Variable que almacenara el caracter leido
-char *palabra="";	// Variable para concatenar y almacenar los tokens
+typedef nodo_t *ptrNodo;
+typedef nodo_t *ptrPila;
+void push(ptrPila *pila, char x[]);
+void pop(ptrPila *pila);
+void presentar_pila(ptrNodo nodo);
 
 //Sintactico
 char *token;
 
-int main(){
+char *listaSimbolos[]={"int","float","id","while","if","else","print","input","<",">","=","num","+","-","*","/","(",")","{","}",";",",","$","INICIO","VARS","BLOQUE","UNTIPO","TIPO","LISTA","SENTENCIAS","IF","IFELSE","WHILE","ASIGNACION","PRINT","INPUT","EXPRESION","COND","OPERADOR","TERMINO","FACTOR"};
+char *desplazar[]={"d5","d6","d7","d15","d16","d17","d18","d20","d21","d22","d25","d26","d30","d31","d33","d34","d35","d36","d38","d39","d40","d41","d43","d49","d55","d56","d57","d58","d59","d60","d61","d62","d65","d66","d67","d68","d70"};
 
+char *reducir[]={"r1","r2","r3","r4","r5","r6","r7","r8","r9","r10","r11","r12","r13","r14","r15","r16","r17","r18","r19","r20","r21","r22","r23","r24","r25","r26","r27","r28","r29","r30","r31","r32","r33","r34","r35","r36"};
+int reducirD[]={2,2,1,3,1,1,3,1,2,1,1,1,1,1,1,1,4,7,11,7,5,3,3,1,1,1,1,3,3,1,3,3,1,1,1,3};
+char *reducirI[]={"INICIO","VARS","VARS","UNTIPO","TIPO","TIPO","LISTA","LISTA","BLOQUE","BLOQUE","SENTENCIAS","SENTENCIAS","SENTENCIAS","SENTENCIAS","SENTENCIAS","SENTENCIAS","ASIGNACION","WHILE","IFELSE","IF","PRINT","INPUT","COND","COND","OPERADOR","OPERADOR","OPERADOR","EXPRESION","EXPRESION","EXPRESION","TERMINO","TERMINO","TERMINO","FACTOR","FACTOR","FACTOR"};
+int reducirLen = 35;
+
+
+char*tabla[71][41]={
+{"d5","d6","d7","d15","d16","","d17","d18","d20","d21","d22","d25","","","","","d26","","","","","","","1","2","","3","4","","8","9","10","11","12","13","14","19","","","23","24"},
+{"","","","","","","","","","","","","","","","","","","","","","","acept","","","","","","","","","","","","","","","","","",""},
+{"","","d7","d15","d16","","d17","d18","","","","","","","","","","","","","","","","","","27","","","","8","9","10","11","12","13","14","","","","",""},
+{"d5","d6","r3","r3","r3","","r3","r3","","","","","","","","","","","","","","","","","28","","3","4","","","","","","","","","","","","",""},
+{"","","d7","","","","","","","","","","","","","","","","","","","","","","","","","","29","","","","","","","","","","","",""},
+{"","","r5","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","r6","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","r34","r34","d31","","r34","r34","r34","r34","","r34","","","r8","d30","","","","","","","","","","","","","","","","","","",""},
+{"","","d7","d15","d16","","d17","d18","","","","","","","","","","","","r10","","","r10","","","32","","","","8","9","10","11","12","13","14","","","","",""},
+{"","","r11","r11","r11","","r11","r11","","","","","","","","","","","","r11","","","r11","","","","","","","","","","","","","","","","","",""},
+{"","","r12","r12","r12","","r12","r12","","","","","","","","","","","","r12","","","r12","","","","","","","","","","","","","","","","","",""},
+{"","","r13","r13","r13","","r13","r13","","","","","","","","","","","","r13","","","r13","","","","","","","","","","","","","","","","","",""},
+{"","","r14","r14","r14","","r14","r14","","","","","","","","","","","","r14","","","r14","","","","","","","","","","","","","","","","","",""},
+{"","","r15","r15","r15","","r15","r15","","","","","","","","","","","","r15","","","r15","","","","","","","","","","","","","","","","","",""},
+{"","","r16","r16","r16","","r16","r16","","","","","","","","","","","","r16","","","r16","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","","","","","d33","","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","","","","","d34","","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","","","","","d35","","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","d36","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","d20","d21","d22","","d38","d39","","","","r24","","","","","","","","","","","","","","","","","","","","","37","",""},
+{"","","r25","","","","","","","","","r25","","","","","r25","","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","r26","","","","","","","","","r26","","","","","r26","","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","r27","","","","","","","","","r27","","","","","r27","","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","r30","r30","r30","","r30","r30","d40","d41","","r30","","","r30","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","r33","r33","r33","","r33","r33","r33","r33","","r33","","","r33","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","r35","r35","r35","","r35","r35","r35","r35","","r35","","","r35","","","","","","","","","","","","","","","","","","","",""},
+{"","","d7","","","","","","","","","d25","","","","","d26","","","","","","","","","","","","","","","","","","","","42","","","23","24"},
+{"","","","","","","","","","","","","","","","","","","","","","","r1","","","","","","","","","","","","","","","","","",""},
+{"","","r2","r2","r2","","r2","r2","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","","","","","","","","","d43","","","","","","","","","","","","","","","","","","","",""},
+{"","","d7","","","","","","","","","","","","","","","","","","","","","","","","","","44","","","","","","","","","","","",""},
+{"","","d7","","","","","","","","","d25","","","","","d26","","","","","","","","","","","","","","","","","","","","45","","","23","24"},
+{"","","","","","","","","","","","","","","","","","","","r9","","","r9","","","","","","","","","","","","","","","","","",""},
+{"","","d7","","","","","","","","","d25","","","","","d26","","","","","","","","","","","","","","","","","","","","19","46","","23","24"},
+{"","","d7","","","","","","","","","d25","","","","","d26","","","","","","","","","","","","","","","","","","","","19","47","","23","24"},
+{"","","d7","","","","","","","","","d25","","","","","d26","","","","","","","","","","","","","","","","","","","","48","","","23","24"},
+{"","","","","","","","","","","","","","","","","","","","","d49","","","","","","","","","","","","","","","","","","","",""},
+{"","","d7","","","","","","","","","d25","","","","","d26","","","","","","","","","","","","","","","","","","","","50","","","23","24"},
+{"","","d7","","","","","","","","","d25","","","","","d26","","","","","","","","","","","","","","","","","","","","","","","51","24"},
+{"","","d7","","","","","","","","","d25","","","","","d26","","","","","","","","","","","","","","","","","","","","","","","52","24"},
+{"","","d7","","","","","","","","","d25","","","","","d26","","","","","","","","","","","","","","","","","","","","","","","","53"},
+{"","","d7","","","","","","","","","d25","","","","","d26","","","","","","","","","","","","","","","","","","","","","","","","54"},
+{"","","","","","","","","","","","","d38","d39","","","","d55","","","","","","","","","","","","","","","","","","","","","","",""},
+{"r4","r4","r4","r4","r4","","r4","r4","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","","","","","","","","","r7","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","d38","d39","","","","","","","d56","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","","","","","","d57","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","","","","","","d58","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","d38","d39","","","","d59","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","r22","r22","r22","","r22","r22","","","","","","","","","","","","r22","","","r22","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","d38","d39","","","","r23","","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","r28","r28","r28","","r28","r28","d40","d41","","r28","","","r28","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","r29","r29","r29","","r29","r29","d40","d41","","r29","","","r29","","","","","","","","","","","","","","","","","","","",""},
+{"","","d7","","","","","","r31","r31","r31","d25","r31","r31","r31","r31","d26","r31","","","r31","","","","","","","","","","","","","","","","","","","",""},
+{"","","d7","","","","","","r32","r32","r32","d25","r32","r32","r32","r32","d26","r32","","","r32","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","r36","r36","r36","","r36","r36","r36","r36","","r36","","","r36","","","","","","","","","","","","","","","","","","","",""},
+{"","","r17","r17","r17","","r17","r17","","","","","","","","","","","","r17","","","r17","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","","","","","","","d60","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","","","","","","","d61","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","","","","","","","","","d62","","","","","","","","","","","","","","","","","","","",""},
+{"","","d7","d15","d16","","d17","d18","","","","","","","","","","","","","","","","","","63","","","","8","9","10","11","12","13","14","","","","",""},
+{"","","d7","d15","d16","","d17","d18","","","","","","","","","","","","","","","","","","64","","","","8","9","10","11","12","13","14","","","","",""},
+{"","","r21","r21","r21","","r21","r21","","","","","","","","","","","","r21","","","r21","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","","","","","","","","d65","","","","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","","","","","","","","d66","","","","","","","","","","","","","","","","","","","","",""},
+{"","","r18","r18","r18","","r18","r18","","","","","","","","","","","","r18","","","r18","","","","","","","","","","","","","","","","","",""},
+{"","","r20","r20","r20","d67","r20","r20","","","","","","","","","","","","r20","","","r20","","","","","","","","","","","","","","","","","",""},
+{"","","","","","","","","","","","","","","","","","","d68","","","","","","","","","","","","","","","","","","","","","",""},
+{"","","d7","d15","d16","","d17","d18","","","","","","","","","","","","","","","","","","69","","","","8","9","10","11","12","13","14","","","","",""},
+{"","","","","","","","","","","","","","","","","","","","d70","","","","","","","","","","","","","","","","","","","","",""},
+{"","","r19","r19","r19","","r19","r19","","","","","","","","","","","","r19","","","r19","","","","","","","","","","","","","","","","","",""},
+};
+
+
+
+
+int main(){
+	//Abrir Archivo codigo fuente
 	archivo = fopen("codigo.txt","r");	// Se abre el archivo en modo lectura
+	//Sintactico
+	ptrPila pila = NULL;
+	push(&pila, "0"); // Se asigna 0 como primer elemento de la Pila
+	int s=0; // estado de la pila
+	int simboloItem = 0; // Almacena el indice de un Simbolo
+	char *r_d; // Almacena reducir_n o desplazar_n
+	//Variables auxiliares
+	int aux=0;
+	int aux2=0;
 
 	token = analizadorLexico();
-	while(token!="EOF"){
-		printf("%d %s\n",cont,token);
-		token = analizadorLexico();
-	}
-
-	//
-    fclose(archivo);	// Se cierra el archivo
-	return 0;
-}
-
-// Metodo para buscar en un arreglo palabras reservadas
-int inTDS(char *palabra){
-	int i, asize, result;
-	i = asize = result = 0;
-	asize = sizeof(simbolos) / sizeof(simbolos[0]);
-
-	for(i = 0; i < asize; i++){
-		if(strcmp(simbolos[i],palabra)==0){
-			return 1;
+	while(token!="-1"){
+		if(token=="EOF"){
+			token="$"; // Al llegar a EOF se asigna $ como ultimo carater
 		}
-	}
-	return 0;
-}
+		s = atoi(pila->dato); // Obtiene la cima de la pila
+		simboloItem = obtenerItemSimbolo(token); // Obtiene el indice del simbolo
+		r_d = tabla[s][simboloItem]; // Obtiene rn o dn de la tabla
 
-// Metodo para buscar en un arreglo separadores
-int isSeparador(char *letra){
-	int i, asize, result;
-	i = asize = result = 0;
-	asize = sizeof(separadores) / sizeof(separadores[0]);
+		if (inDesplazar(r_d)!=-1) {
+			push(&pila,token);
 
-	for(i = 0; i < asize; i++){
-		//printf("%d: %s\n", i, simbolos[i]);
-		if(strcmp(separadores[i],letra)==0){
-			return 1;
-		}
-	}
-	return 0;
-}
-
-// Metodo para buscar en un arreglo operadores
-int isOperador(char *letra){
-	int i, asize, result;
-	i = asize = result = 0;
-	asize = sizeof(operadores) / sizeof(operadores[0]);
-
-	for(i = 0; i < asize; i++){
-		//printf("%d: %s\n", i, simbolos[i]);
-		if(strcmp(operadores[i],letra)==0){
-			return 1;
-		}
-	}
-	return 0;
-}
-
-char* analizadorLexico(){
-	if (archivo == NULL){	// Si no existe el archivo
-		//printf("\nError de apertura del archivo. \n\n");
-		return "Error de apertura del archivo";
-    }else{	// Si el archivo existe
-		caracter = fgetc(archivo);	// Se obtiene el primer caracter del archivo
-		int estado=0;	// Se inicializa el estado a 0
-		while (caracter!=EOF)	//Mientras el caracter leido sea diferente de EOF
-		{
-			switch(estado){
-			case 0:
-				if(isdigit(caracter)){
-					estado=1;
-				}else if(isalpha(caracter)){
-					estado=5;
-				}else if(isSeparador(&caracter)==1){
-					estado=9;
-				}else if(isOperador(&caracter)==1){
-					estado=10;
-				}else{
-					printf("Error Case 0\n");
+			// Eliminar primer elemento(r o d) del simbolo de la tabla
+			int ii=0;
+			int jj=0;
+			char numero[100];
+			while (r_d[ii] != '\0')
+			{
+				if (r_d[0] != r_d[ii])
+				{
+					numero[jj] = r_d[ii];
+					jj++;
 				}
-				break;
-
-			case 1:
-				if(isdigit(caracter)){
-					estado=1;
-				}else{
-					if(caracter==','){
-						estado=2;
-					}else{
-						if(isSeparador(&caracter)==1||isOperador(&caracter)){
-							estado=4;
-						}else{
-							printf("Error Case 1\n");
-							estado=-1;
-						}
-					}
-				}
-
-				break;
-			case 2:
-				if(isdigit(caracter)){
-					estado=3;
-				}else{
-					printf("Error Case 2\n");
-				}
-				break;
-
-			case 3:
-				if(isdigit(caracter)){
-					estado=3;
-				}else{
-					if(isSeparador(&caracter)){
-						estado=4;
-					}else{
-						printf("Error case 3");
-					}
-				}
-				break;
-
-			case 5:
-				if(isalpha(caracter)){
-					estado=5;
-				}else{
-					if(caracter=='_'){
-						estado=6;
-					}else{
-						if(isdigit(caracter)){
-							estado=7;
-						}else{
-							if(isSeparador(&caracter)==1){
-								estado=8;
-							}else{
-								if(isOperador(&caracter)==1){
-									estado=8;
-								}else{
-									printf("Error Case 5\n");
-								}
-							}
-						}
-					}
-				}
-				break;
-			case 6:
-				if (isalpha(caracter)){
-					estado=5;
-				}else{
-					if (isdigit(caracter)){
-						estado=7;
-					}else{
-						printf("Error Case 6\n");
-					}
-				}
-				break;
-
-			case 7:
-				if (isdigit (caracter)){
-					estado=7;
-				}else{
-					if(isSeparador(&caracter)){
-						estado=8;
-					}else{
-						printf("Error Case 7\n");
-					}
-				}
-				break;
-
-			default:
-				printf("ERROR");
+				ii++;
 			}
-			// Verificamos si hay un estado de aceptacion
-			if(estado==4||estado==8||estado==9||estado==10){
-				if(estado==4){
-					cont++;	// Incrementamos el contador de tokens
-					//printf("%d) %s Numero\n", cont, palabra);
-					ungetc(caracter, archivo);
-					palabra="";	// Se fija a cadena vacia
-					estado=0;	// Se reinicia el estado
-					return "numero";
-				}
-				if(estado==8){
-					if(inTDS(palabra)==1){
-						cont++;
-						//printf("%d) %s Palabra Reservada\n", cont, palabra);
-						ungetc(caracter, archivo);
-						palabra="";	// Se fija a cadena vacia
-						estado=0;	// Se reinicia el estado
-						return "pr";
-					}else{
-						cont++;
-						//printf("%d) %s Identificador\n", cont,palabra);
-						ungetc(caracter, archivo);
-						palabra="";	// Se fija a cadena vacia
-						estado=0;	// Se reinicia el estado
-						return "id";
-					}
-
-					if(isOperador(&caracter)==1){
-						cont++;
-						//printf("%d) %c Operador\n",cont, caracter);
-						return "operador";
-					}else{
-						if(isSeparador(&caracter)==1 && caracter!=' ' ){
-							cont++;
-							estado=0;
-							return "separador";
-							//printf("%d) %c Separador\n", cont, caracter);
-
-						}
+			numero[jj] = '\0';
+			push(&pila, numero);
+			token = analizadorLexico(); // Se obtiene el nuevo token
+		}else{
+			if(inReducir(r_d)!=-1){
+				int k;
+				for(k=0;k<reducirLen;k++){
+					if(r_d==reducir[k]){
+						aux = k;
 					}
 				}
-				//	Verificamos que no haya salato de linea, espacio en blanco y tabulador
-				if(estado==9 && caracter!='\n' && caracter!=' ' && caracter!='\t'){
-					cont++;
-					//printf("%d) %c Separador\n", cont, caracter);
-					estado=0;
-					return "separador";
+				aux2 = reducirD[aux]; // Calcula los elementos a ser eliminados
+				int l;
+				for(l=0;l<aux2*2;l++){ // Elimina n veces dependiendo de aux2
+					pop(&pila);
 				}
-
-				if(estado==10){
-					cont++;
-					//printf("%d) %c Operador\n", cont, caracter);
-					estado=0;
-					return "operador";
-				}
-
-				palabra="";	// Se fija a cadena vacia
-				estado=0;	// Se reinicia el estado
+				s = atoi(pila->dato); // Obtiene la cima de la pila
+				push(&pila, reducirI[inReducir(r_d)]); // Push parte Izquierda
+				// Obtiene el Indice del elemento que esta en la cima de la pila
+				simboloItem = obtenerItemSimbolo(pila->dato);
+				r_d = tabla[s][simboloItem]; // Obtiene rn o dn de la tabla
+				push(&pila, r_d); // Push de r_d
 			}else{
-				// Se concatena el valor de palabra con el caracter leido
-				palabra=concat(palabra, &caracter);
+				if(r_d=="acept"){
+					printf("Aceptar");
+					token="-1"; // Se asigna -1 para terminar el bucle
+				}else{
+					printf("Error Sintactico Estado %d, Simbolo: %s, Simbolo Item: %d", s, r_d, simboloItem);
+					token = "-1";  // Se asigna -1 para terminar el bucle
+				}
 			}
-			caracter = fgetc(archivo);	// Obtener el siguiente caracter
 		}
-		return "EOF";
 	}
+    fclose(archivo);	// Se cierra el archivo
+    printf("\n\n");
+    presentar_pila(pila);
+	return 0;
 }
 
-// Definicion del metodo para concatenar un string con un caracter
-char* concat(char *s1, char *s2)
-{
-    char *result = malloc(strlen(s1)+strlen(s2)+1);
-    strcpy(result, s1);
-    strcat(result, s2);
-    return result;
+// Metodo para buscar el indice de un simbolo
+int obtenerItemSimbolo(char *palabra){
+	int i, asize, result;
+	i = asize = result = 0;
+	asize = sizeof(listaSimbolos) / sizeof(listaSimbolos[0]);
+
+	for(i = 0; i < asize; i++){
+		if(strcmp(listaSimbolos[i],palabra)==0){
+			return i;
+		}
+	}
+	printf("Se obtuvo negativo al buscar Simbolo: %s \n", palabra);
+	return -1;
+}
+// Metodo para buscar si r_d esta en el arreglo desplazar
+int inDesplazar(char *palabra){
+	int i, asize, result;
+	i = asize = result = 0;
+	asize = sizeof(desplazar) / sizeof(desplazar[0]);
+
+	for(i = 0; i < asize; i++){
+		if(strcmp(desplazar[i],palabra)==0){
+			return i;
+		}
+	}
+	return -1;
+}
+
+// Metodo para buscar si r_d esta en el arreglo ruducir
+int inReducir(char *palabra){
+	int i, asize, result;
+	i = asize = result = 0;
+	asize = sizeof(reducir) / sizeof(reducir[0]);
+
+	for(i = 0; i < asize; i++){
+		if(strcmp(reducir[i],palabra)==0){
+			return i;
+		}
+	}
+	return -1;
+}
+
+// Metodos de la Pila
+void push(ptrPila *pila, char x[]) {
+    // Crea un nuevo nodo
+    ptrNodo nodo;
+    nodo = (ptrNodo) malloc(sizeof (nodo_t));
+    if (nodo != NULL) {
+        int i = 0;
+        for (i = 0; i < STACK_MAX; i++) {
+            nodo->dato[i] = x[i];
+        }
+
+        // El apuntador nodo->siguiente va a apuntar al primer nodo de la lista ligada
+        nodo->siguiente = *pila;
+        // pila va a apuntar al nuevo nodo, con esto hacemos que el nuevo nodo sea ahora el primer nodo de la lista ligada
+        *pila = nodo;
+    }
+}
+
+/*
+    Elimina el primer nodo de la lista ligada
+ *pila es el apuntador que apunta al primer nodo de la lista ligada (la cima de la pila)
+ */
+void pop(ptrPila *pila) {
+    // Crea un nuevo nodo
+    ptrNodo nodo;
+    // El nuevo nodo va a apuntar al primer nodo de la lista ligada
+    nodo = *pila;
+    // x = (*pila)->dato[0];
+    // Ahora el segundo nodo de la lista ligada va a ser el primero
+    *pila = (*pila)->siguiente;
+    // Borra el primer nodo de la lista ligada
+    free(nodo);
+}
+
+/*
+   Muestra los datos de los nodos
+ */
+void presentar_pila(ptrNodo Pila) {
+    ptrNodo nodo = NULL;
+    nodo = Pila;
+
+    if (nodo == NULL)
+        printf("La pila está vacia\n");
+    else {
+        printf("\n Recorrido de la Pila\n");
+        while (nodo != NULL) {
+            printf("%s\n", nodo->dato);
+            nodo = nodo->siguiente;
+        }
+        printf("\n");
+    }
 }
 

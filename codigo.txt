@@ -1,8 +1,14 @@
+int n;
+int s;
+while(id>7){
+n=5;
+
 if(a>b){
-a=4;
-	a  = b;
-	while(a>b){
-		c=h;
-		a+b;
+id=6;
+	if(8<f){
+		print (f);
+	}else{
+		print (n);
 	}
+}
 }
